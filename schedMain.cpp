@@ -1,4 +1,3 @@
-
 #include<vector>   // process vector
 #include<iostream> // cout, cin
 #include<chrono>   // sleep duration
@@ -102,32 +101,17 @@ int main(int argc, char* argv[])
 
             //Shortest Process Next
             case 2:
-
-				//////////////////////////////
-                // TODO set procIdx to the proper index for the next process to be scheduled using SPN
-
-				//////////////////////////////
-
+		procIdx = ShortestProcess(curTime, procList);
                 break;
 
             //Shortest Remaining Time
             case 3:
-
-				//////////////////////////////
-                // TODO set procIdx to the proper index for the next process to be scheduled using SRT
-
-				//////////////////////////////
-
+		procIdx = ShortestRemainingTime(curTime, procList);
                 break;
-
+                
             //Highest Response Ratio Next
             case 4:
-
-				//////////////////////////////
-                // TODO set procIdx to the proper index for the next process to be scheduled using HRRN
-
-				//////////////////////////////
-
+		procIdx = HighestResponseRatio(curTime, procList);
                 break;
         }
 
@@ -197,15 +181,18 @@ int main(int argc, char* argv[])
     cout << "\n\nRun Statistics:\n";
 
 
-
-	/////////////////////////////////////
-    //TODO calculate the turnaroundTime and normalizedTurnaroundTime member variables for each process. 
-	//     Also	calculate the average normalized turnaround time for the run (use the variable declared 
-	//     here to store the result).
 	float averageNormTurnTime = 0.0;
 
-	/////////////////////////////////////
+    for (int i = 0; i < numProc; ++i)
+    {   
+        procList[i].calculateStats(); 
+        averageNormTurnTime += procList[i].normalizedTurnaroundTime;
+    }
 
+    if (numProc > 0)
+    {
+        averageNormTurnTime /= numProc;
+    }
 
 
 	//output the run stats for each process
