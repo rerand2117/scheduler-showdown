@@ -1,76 +1,153 @@
-#ifndef SCHEDULERS_H
-#define SCHEDULERS_H
+#include "schedulers.h"
 
-#include<vector>  //process vector
-#include<deque>   //for ready double ended queue
-#include<fstream>  // file i/o
-#include<iostream> // cerr
-#include <algorithm>
-
-using namespace std;
-
-struct Process
+//Round Robin scheduler implementation. In general, this function maintains a double ended queue
+//of processes that are candidates for scheduling (the ready variable) and always schedules
+//the first process on that list, if available (i.e., if the list has members)
+int RoundRobin(const int& curTime, const vector<Process>& procList, const int& timeQuantum)
 {
-    Process() : id("notSet"), startTime(-1), totalTimeNeeded(-1), isDone(false), timeScheduled(0), timeFinished(-1), turnaroundTime(0), normalizedTurnaroundTime(0) {}
+    static int timeToNextSched = timeQuantum;  //keeps track of when we should actually schedule a new process
+    static deque<int> ready;  //keeps track of the processes that are ready to be scheduled
 
-    // Given data
-    string id;            //The process id
-    int startTime;        //The time at which the process becomes available for scheduling
-    int totalTimeNeeded;  //The total amount of time needed by the process
+    int idx = -1;
 
-    // Process details
-    bool isDone;          //Indicates if the process is complete
-    int timeScheduled;    //The amount of time the process has been scheduled so far
-    int timeFinished;     //The time that the process completed
-
-	// Stats
-	float turnaroundTime;
-	float normalizedTurnaroundTime;
-
-    void calculateStats()
+    // first look through the process list and find any processes that are newly ready and
+    // add them to the back of the ready queue
+    for(int i = 0, i_end = procList.size(); i < i_end; ++i)
     {
-        if (timeFinished >= 0) 
+        if(procList[i].startTime == curTime)
         {
-            turnaroundTime = timeFinished - startTime;
-            
-            if (totalTimeNeeded > 0)
-            {
-                normalizedTurnaroundTime = turnaroundTime / totalTimeNeeded;
-            }
-            else
-            {
-                normalizedTurnaroundTime = 0; 
+            ready.push_back(i);
+        }
+    }
+
+    // now take a look the head of the ready queue, and update if needed
+    // (i.e., if we are supposed to schedule now or the process is done)
+    if(timeToNextSched == 0 || procList[ready[0]].isDone)
+    {
+        // the process at the start of the ready queue is being taken off of the
+        // processor
+
+        // if the process isn't done, add it to the back of the ready queue
+        if(!procList[ready[0]].isDone)
+        {
+            ready.push_back(ready[0]);
+        }
+
+        // remove the process from the front of the ready queue and reset the time until
+        // the next scheduling
+        ready.pop_front();
+        timeToNextSched = timeQuantum;
+    }
+
+    // if the ready queue has any processes on it
+    if(ready.size() > 0)
+    {
+        // grab the front process and decrement the time to next scheduling
+        idx = ready[0];
+        --timeToNextSched;
+    }
+    // if the ready queue has no processes on it
+    else
+    {
+        // send back an invalid process index and set the time to next scheduling
+        // value so that we try again next time step
+        idx = -1;
+        timeToNextSched = 0;
+    }
+
+    // return back the index of the process to schedule next
+    return idx;
+}
+
+int ShortestProcess(const int& curTime, const vector<Process>& procList){
+    int idx = -1;
+    static deque<int> ready;
+
+    for (int i = 0, i_end = procList.size(); i < i_end; ++i) {
+        if (procList[i].startTime == curTime && !procList[i].isDone) {
+            ready.push_back(i);
+        }
+    }
+
+    while (!ready.empty() && procList[ready.front()].isDone) {
+        ready.pop_front();
+    }
+
+    if (!ready.empty()) {
+        idx = ready.front();  
+        for (int i : ready) {
+            if (procList[i].totalTimeNeeded < procList[idx].totalTimeNeeded && !procList[i].isDone) {
+                idx = i;  
             }
         }
     }
-};
 
-
-
-inline void readInProcList(const string& fname, vector<Process>& procList)
-{
-    ifstream in(fname.c_str());
-    int numProcs;
-
-    if(in.fail())
-    {
-        cerr << "Unable to open file \"" << fname << "\", terminating" << endl;
-        exit(-1);
-    }
-
-    in >> numProcs;
-    procList.resize(numProcs);
-    for(auto& p:procList)
-    {
-        in >> p.id >> p.startTime >> p.totalTimeNeeded;
-    }
-    in.close();
+    return idx; 
 }
 
+int ShortestRemainingTime(const int& curTime, const vector<Process>& procList){
+    int idx = -1; 
+    static deque<int> ready; 
 
-int RoundRobin(const int& curTime, const vector<Process>& procList, const int& timeQuantum);
-int ShortestProcess(const int& curTime, const vector<Process>& procList);
-int ShortestRemainingTime(const int& curTime, const vector<Process>& procList);
-int HighestResponseRatio(const int& curTime, const vector<Process>& procList);
+    for (int i = 0, i_end = procList.size(); i < i_end; ++i) {
+        if (procList[i].startTime == curTime && !procList[i].isDone) {
+            ready.push_back(i);
+        }
+    }
 
-#endif
+    while (!ready.empty() && procList[ready.front()].isDone) {
+        ready.pop_front();
+    }
+
+    if (!ready.empty()) {
+        idx = ready.front();  
+        for (int i : ready) {
+            int remainingTime = procList[i].totalTimeNeeded - procList[i].timeScheduled;
+            int currentShortestRemainingTime = procList[idx].totalTimeNeeded - procList[idx].timeScheduled;
+
+            if (remainingTime < currentShortestRemainingTime && !procList[i].isDone) {
+                idx = i; 
+            }
+        }
+    }
+
+    return idx; 
+}
+
+int HighestResponseRatio(const int& curTime, const vector<Process>& procList){
+    int idx = -1;
+    static deque<int> ready;
+
+    for (unsigned int i = 0; i < procList.size(); ++i) {
+        if (procList[i].startTime <= curTime && !procList[i].isDone) { 
+            ready.push_back(i);
+        }
+    }
+
+    while (!ready.empty() && procList[ready.front()].isDone) {
+        ready.pop_front();
+    }
+
+    if (ready.empty()) {
+        return -1; 
+    }
+
+    double maxResponseRatio = -1.0;  
+
+    for (int i : ready) {
+        int waitingTime = curTime - procList[i].startTime - procList[i].timeScheduled; 
+        int serviceTime = procList[i].totalTimeNeeded;
+
+        if (serviceTime > 0 && procList[i].timeScheduled < serviceTime) {
+            double responseRatio = (waitingTime + serviceTime) / static_cast<double>(serviceTime);
+
+            if (responseRatio > maxResponseRatio) {
+                maxResponseRatio = responseRatio;
+                idx = i;  
+            }
+        }
+    }
+
+    return idx; 
+}
+
