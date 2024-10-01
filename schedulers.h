@@ -5,6 +5,7 @@
 #include<deque>   //for ready double ended queue
 #include<fstream>  // file i/o
 #include<iostream> // cerr
+#include <algorithm>
 
 using namespace std;
 
@@ -25,7 +26,25 @@ struct Process
 	// Stats
 	float turnaroundTime;
 	float normalizedTurnaroundTime;
+
+    void calculateStats()
+    {
+        if (timeFinished >= 0) 
+        {
+            turnaroundTime = timeFinished - startTime;
+            
+            if (totalTimeNeeded > 0)
+            {
+                normalizedTurnaroundTime = turnaroundTime / totalTimeNeeded;
+            }
+            else
+            {
+                normalizedTurnaroundTime = 0; 
+            }
+        }
+    }
 };
+
 
 
 inline void readInProcList(const string& fname, vector<Process>& procList)
@@ -50,5 +69,8 @@ inline void readInProcList(const string& fname, vector<Process>& procList)
 
 
 int RoundRobin(const int& curTime, const vector<Process>& procList, const int& timeQuantum);
+int ShortestProcess(const int& curTime, const vector<Process>& procList);
+int ShortestRemainingTime(const int& curTime, const vector<Process>& procList);
+int HighestResponseRatio(const int& curTime, const vector<Process>& procList);
 
 #endif
